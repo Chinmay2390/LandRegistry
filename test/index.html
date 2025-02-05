@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Land Registry DApp</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #4a4a4a;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    header h1 {
+      margin: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      background: white;
+      padding: 20px;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    input, button {
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #4a90e2;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #357abd;
+    }
+
+    .output {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #e9f7fe;
+      border-left: 5px solid #4a90e2;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Land Registry DApp</h1>
+  </header>
+
+  <div class="container">
+    <h2>Register Land</h2>
+    <form id="registerLandForm">
+      <input type="number" id="landId" placeholder="Land ID" required>
+      <input type="text" id="landLocation" placeholder="Location" required>
+      <input type="number" id="landArea" placeholder="Area (in sq.ft)" required>
+      <button type="submit">Register Land</button>
+    </form>
+  </div>
+
+  <div class="container">
+    <h2>Transfer Ownership</h2>
+    <form id="transferOwnershipForm">
+      <input type="number" id="transferLandId" placeholder="Land ID" required>
+      <input type="text" id="newOwnerAddress" placeholder="New Owner Address" required>
+      <button type="submit">Transfer Ownership</button>
+    </form>
+  </div>
+
+  <div class="container">
+    <h2>Output</h2>
+    <div class="output" id="output">Output will be displayed here.</div>
+  </div>
+
+  <script>
+    const web3 = new Web3("http://127.0.0.1:7545"); // Ganache RPC URL
+
+    // Contract ABI and address
+    const contractABI = [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "landId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "area",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        }
+      ],
+      "name": "LandRegistered",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "landId",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "oldOwner",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "OwnershipTransferred",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "lands",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "area",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "registered",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "_location",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_area",
+          "type": "uint256"
+        }
+      ],
+      "name": "registerLand",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "_newOwner",
+          "type": "address"
+        }
+      ],
+      "name": "transferOwnership",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        }
+      ],
+      "name": "getLand",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "id",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "location",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "area",
+          "type": "uint256"
+        },
+        {
+          "internalType": "address",
+          "name": "owner",
+          "type": "address"
+        },
+        {
+          "internalType": "bool",
+          "name": "registered",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_id",
+          "type": "uint256"
+        }
+      ],
+      "name": "isLandRegistered",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function",
+      "constant": true
+    }
+    ];
+
+    const contractAddress = "0x2F3f92857cFa532e45334BA4af5E5538adcB4c27"; // Replace with your deployed contract address
+    const senderAddress = "0x4c508A5Cf37b26976A46d671246025277e263bcb"; // Replace with the account address you want to use
+
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
+    const outputDiv = document.getElementById("output");
+
+    document.getElementById("registerLandForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const landId = document.getElementById("landId").value;
+      const location = document.getElementById("landLocation").value;
+      const area = document.getElementById("landArea").value;
+
+      try {
+        const gasEstimate = await contract.methods.registerLand(landId, location, area).estimateGas({ from: senderAddress });
+        await contract.methods.registerLand(landId, location, area).send({
+          from: senderAddress,
+          gas: gasEstimate + 100000
+        });
+        outputDiv.innerText = `Land with ID ${landId} registered successfully!`;
+      } catch (error) {
+        outputDiv.innerText = `Error: ${error.message}`;
+      }
+    });
+
+    document.getElementById("transferOwnershipForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const landId = document.getElementById("transferLandId").value;
+      const newOwner = document.getElementById("newOwnerAddress").value;
+
+      try {
+        const gasEstimate = await contract.methods.transferOwnership(landId, newOwner).estimateGas({ from: senderAddress });
+        await contract.methods.transferOwnership(landId, newOwner).send({
+          from: senderAddress,
+          gas: gasEstimate + 100000
+        });
+        outputDiv.innerText = `Ownership of land ID ${landId} transferred successfully to ${newOwner}`;
+      } catch (error) {
+        outputDiv.innerText = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
